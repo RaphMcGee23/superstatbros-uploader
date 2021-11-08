@@ -1,18 +1,28 @@
 <template>
-  <div class="home">
-    <img alt="Vue logo" src="../assets/logo.png">
-    <HelloWorld msg="Welcome to Your Vue.js App"/>
-  </div>
+		<LiveLog />
 </template>
 
 <script>
-// @ is an alias to /src
-import HelloWorld from '@/components/HelloWorld.vue'
-
+import LiveLog from '../components/LiveLog.vue';
 export default {
-  name: 'Home',
+  name: "Home",
   components: {
-    HelloWorld
-  }
-}
+		LiveLog
+	},
+	computed: {
+		loggedIn(){
+			return this.$store.state.loggedIn;
+		},
+	},
+	created(){
+		if(!this.loggedIn){
+			this.$router.push('/login');
+		}
+	},
+	methods: {
+	}
+};
 </script>
+
+<style scoped>
+</style>

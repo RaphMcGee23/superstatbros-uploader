@@ -1,32 +1,53 @@
 <template>
-  <div id="app">
-    <div id="nav">
-      <router-link to="/">Home</router-link> |
-      <router-link to="/about">About</router-link>
-    </div>
-    <router-view/>
-  </div>
+  <v-app>
+    <v-app-bar app color="indigo lighten-4" light>
+      <div class="d-flex align-center">
+        <h3 style="font-family:Roboto; font-weight:300;">SUPERSTATBROS</h3>
+      </div>
+
+      <v-spacer></v-spacer>
+
+      <v-btn
+        href="https://github.com/vuetifyjs/vuetify/releases/latest"
+        target="_blank"
+        text
+      >
+        <span class="mr-2">Latest Release</span>
+        <v-icon>mdi-open-in-new</v-icon>
+      </v-btn>
+    </v-app-bar>
+    <v-main>
+      <v-container id="mainContainer" class="d-flex align-center justify-center">
+        <v-row class="justify-center">
+          <v-col>
+            <router-view />
+          </v-col>
+        </v-row>
+      </v-container>
+    </v-main>
+  </v-app>
 </template>
 
+<script>
+export default {
+  name: "App",
+
+  data: () => ({
+    //
+  }),
+	mounted(){
+		window.ipcRenderer.on("loginCookie", (data) => {
+      this.$store.commit("login", data);
+    });
+	}
+};
+</script>
+
 <style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
+#mainContainer{
+	height: 100%;
 }
-
-#nav {
-  padding: 30px;
-}
-
-#nav a {
-  font-weight: bold;
-  color: #2c3e50;
-}
-
-#nav a.router-link-exact-active {
-  color: #42b983;
+.v-input__append-inner {
+  margin: 0 !important;
 }
 </style>
