@@ -4,7 +4,7 @@ import { app, protocol, BrowserWindow, dialog, ipcMain, session } from 'electron
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 import installExtension, { VUEJS_DEVTOOLS } from 'electron-devtools-installer'
 const isDevelopment = process.env.NODE_ENV !== 'production'
-
+const {	Worker,isMainThread } = require('worker_threads');
 const path = require('path');
 const axios = require('axios');
 const chokidar = require('chokidar');
@@ -17,7 +17,7 @@ protocol.registerSchemesAsPrivileged([
 	{ scheme: 'app', privileges: { secure: true, standard: true } }
 ])
 
-let mainWindow, workerWindow;
+let mainWindow
 
 async function createWindow() {
 	// Create the browser window.
@@ -35,31 +35,14 @@ async function createWindow() {
 		}
 	})
 
-	workerWindow = new BrowserWindow({
-		// change this to hide window
-		show: false,
-		width: 800,
-		height: 600,
-		webPreferences: {
-
-			// Use pluginOptions.nodeIntegration, leave this alone
-			// See nklayman.github.io/vue-cli-plugin-electron-builder/guide/security.html#node-integration for more info
-			nodeIntegration: process.env.ELECTRON_NODE_INTEGRATION,
-			contextIsolation: !process.env.ELECTRON_NODE_INTEGRATION,
-			preload: path.join(__dirname, 'preloadWorker.js')
-		}
-	})
-
 	if (process.env.WEBPACK_DEV_SERVER_URL) {
 		// Load the url of the dev server if in development mode
 		await mainWindow.loadURL(process.env.WEBPACK_DEV_SERVER_URL)
-		await workerWindow.loadURL(path.join(process.env.WEBPACK_DEV_SERVER_URL, 'worker.html'))
 		if (!process.env.IS_TEST) mainWindow.webContents.openDevTools()
 	} else {
 		createProtocol('app')
 		// Load the index.html when not in development
 		mainWindow.loadURL('app://./index.html')
-		workerWindow.loadURL('app://./worker.html')
 	}
 }
 
@@ -146,11 +129,6 @@ ipcMain.on('openDialog', () => {
 			console.log(err);
 		});
 })
-
-const {
-	Worker,
-	isMainThread
-} = require('worker_threads');
 
 // Start live logging
 ipcMain.on('startLogging', (e, data) => {
