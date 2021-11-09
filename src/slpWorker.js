@@ -1,28 +1,11 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { workerData, parentPort } = require('worker_threads');
 const { SlippiGame } = require('@slippi/slippi-js');
 const crypto = require('crypto');
 const semver = require('semver');
 
-// Expose ipcRenderer to the client
-contextBridge.exposeInMainWorld('ipcRenderer', {
-	send: (channel, data) => {
-		let validChannels = ['worker-log', "parseSlpWorker-reply"] // <-- Array of all ipcRenderer Channels used in the client
-		if (validChannels.includes(channel)) {
-			ipcRenderer.send(channel, data)
-		}
-	},
-	on: (channel, func) => {
-		let validChannels = ['log', "parseSlpWorker"] // <-- Array of all ipcMain Channels used in the electron
-		if (validChannels.includes(channel)) {
-			// Deliberately strip event as it includes `sender`
-			ipcRenderer.on(channel, (event, ...args) => func(...args))
-		}
-	}
-})
 
-contextBridge.exposeInMainWorld('slippiGame', {
-	parse: (path) => {
-		let match = {};
+function parse(path) {
+	let match = {};
 		const game = new SlippiGame(path);
 		const settings = game.getSettings();
 		if(semver.lt(settings.slpVersion, '3.6.0')){
@@ -39,5 +22,8 @@ contextBridge.exposeInMainWorld('slippiGame', {
 		match.metadata = metadata;
 		match.id = id;
 		return match;
-	}
-});
+}
+
+parentPort.postMessage(
+	parse(workerData.value)
+);

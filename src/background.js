@@ -1,12 +1,11 @@
 'use strict'
 
-import { app, protocol, BrowserWindow, dialog } from 'electron'
+import { app, protocol, BrowserWindow, dialog, ipcMain, session } from 'electron'
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 import installExtension, { VUEJS_DEVTOOLS } from 'electron-devtools-installer'
 const isDevelopment = process.env.NODE_ENV !== 'production'
 
 const path = require('path');
-const { ipcMain, session } = require('electron');
 const axios = require('axios');
 const chokidar = require('chokidar');
 
@@ -38,7 +37,7 @@ async function createWindow() {
 
 	workerWindow = new BrowserWindow({
 		// change this to hide window
-		// show: false,
+		show: false,
 		width: 800,
 		height: 600,
 		webPreferences: {
@@ -148,6 +147,11 @@ ipcMain.on('openDialog', () => {
 		});
 })
 
+const {
+	Worker,
+	isMainThread
+} = require('worker_threads');
+
 // Start live logging
 ipcMain.on('startLogging', (e, data) => {
 	let watcher = chokidar.watch(path.join(data.path, '*.slp'), {
@@ -158,24 +162,32 @@ ipcMain.on('startLogging', (e, data) => {
 		}
 	});
 	console.log("Live logging started");
-	watcher.on('add', (path) => {
+	watcher.on('add', (filepath) => {
 		// Sends path to worker to parse/upload
-		workerWindow.webContents.send("parseSlpWorker", { path: path, token: data.token });
+		if (isMainThread) {
+			// run thread and pass info
+			const worker = new Worker(path.join(__dirname, './slpWorker.js'), { workerData: { value: filepath } });
+			worker.on('message', (result) => {
+				// Upload SLP file
+				axios({ method: 'post', url: '/uploads', data: { game: result }, headers: { "auth-token": data.token } })
+					.then(function (res) {
+						console.log(res.data);
+						mainWindow.webContents.send("upload-complete", { settings: result.settings, id: result.id });
+					})
+					.catch(function (error) {
+						console.log(error);
+					});
+			});
+			worker.on('exit', (code) => {
+				if (code !== 0)
+					throw new Error(`Worker stopped with exit code ${code}`);
+				else
+					console.log('Worker stopped ' + code);
+			});
+		}
 	})
 	// Stop live logging
 	ipcMain.on("stopLogging", () => {
-		watcher.close().then(() => console.log('stop watching directory'));
+		watcher.close().then(() => console.log('stopped watching directory'));
 	});
-})
-
-ipcMain.on('parseSlpWorker-reply', (e, data) => {
-	// Upload SLP file
-	axios({ method: 'post', url: '/uploads', data: { game: data.match }, headers: { "auth-token": data.token } })
-		.then(function (res) {
-			console.log(res.data);
-			mainWindow.webContents.send("upload-complete", { settings: data.match.settings, id: data.match.id });
-		})
-		.catch(function (error) {
-			console.log(error);
-		});
 })
