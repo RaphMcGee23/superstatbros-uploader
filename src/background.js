@@ -17,7 +17,7 @@ protocol.registerSchemesAsPrivileged([
 	{ scheme: 'app', privileges: { secure: true, standard: true } }
 ])
 
-let mainWindow
+let mainWindow, workerWindow;
 
 async function createWindow() {
 	// Create the browser window.
@@ -35,14 +35,31 @@ async function createWindow() {
 		}
 	})
 
+	workerWindow = new BrowserWindow({
+		// change this to hide window
+		show: false,
+		width: 800,
+		height: 600,
+		webPreferences: {
+
+			// Use pluginOptions.nodeIntegration, leave this alone
+			// See nklayman.github.io/vue-cli-plugin-electron-builder/guide/security.html#node-integration for more info
+			nodeIntegration: process.env.ELECTRON_NODE_INTEGRATION,
+			contextIsolation: !process.env.ELECTRON_NODE_INTEGRATION,
+			preload: path.join(__dirname, 'preloadWorker.js')
+		}
+	})
+
 	if (process.env.WEBPACK_DEV_SERVER_URL) {
 		// Load the url of the dev server if in development mode
 		await mainWindow.loadURL(process.env.WEBPACK_DEV_SERVER_URL)
+		await workerWindow.loadURL(path.join(process.env.WEBPACK_DEV_SERVER_URL, 'worker.html'))
 		if (!process.env.IS_TEST) mainWindow.webContents.openDevTools()
 	} else {
 		createProtocol('app')
 		// Load the index.html when not in development
 		mainWindow.loadURL('app://./index.html')
+		workerWindow.loadURL('app://./worker.html')
 	}
 }
 
@@ -140,32 +157,24 @@ ipcMain.on('startLogging', (e, data) => {
 		}
 	});
 	console.log("Live logging started");
-	watcher.on('add', (filepath) => {
+	watcher.on('add', (path) => {
 		// Sends path to worker to parse/upload
-		if (isMainThread) {
-			// run thread and pass info
-			const worker = new Worker(path.join(__dirname, './slpWorker.js'), { workerData: { value: filepath } });
-			worker.on('message', (result) => {
-				// Upload SLP file
-				axios({ method: 'post', url: '/uploads', data: { game: result }, headers: { "auth-token": data.token } })
-					.then(function (res) {
-						console.log(res.data);
-						mainWindow.webContents.send("upload-complete", { settings: result.settings, id: result.id });
-					})
-					.catch(function (error) {
-						console.log(error);
-					});
-			});
-			worker.on('exit', (code) => {
-				if (code !== 0)
-					throw new Error(`Worker stopped with exit code ${code}`);
-				else
-					console.log('Worker stopped ' + code);
-			});
-		}
+		workerWindow.webContents.send("parseSlpWorker", { path: path, token: data.token });
 	})
 	// Stop live logging
 	ipcMain.on("stopLogging", () => {
-		watcher.close().then(() => console.log('stopped watching directory'));
+		watcher.close().then(() => console.log('stop watching directory'));
 	});
+})
+
+ipcMain.on('parseSlpWorker-reply', (e, data) => {
+	// Upload SLP file
+	axios({ method: 'post', url: '/uploads', data: { game: data.match }, headers: { "auth-token": data.token } })
+		.then(function (res) {
+			console.log(res.data);
+			mainWindow.webContents.send("upload-complete", { settings: data.match.settings, id: data.match.id });
+		})
+		.catch(function (error) {
+			console.log(error);
+		});
 })
