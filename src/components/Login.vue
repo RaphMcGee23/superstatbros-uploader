@@ -33,7 +33,7 @@
             <v-btn
               style="width: 100%"
               class="mb-3"
-              color="indigo lighten-4"
+              color="tertiary"
               :disabled="!valid"
               @click="login"
               >LOGIN</v-btn

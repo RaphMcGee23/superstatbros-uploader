@@ -8,13 +8,13 @@
       hint="Usually in Documents/Slippi"
     >
       <template v-slot:append>
-        <v-btn class="my-2" @click="selectFolder" color="indigo lighten-4"> Choose </v-btn>
+        <v-btn class="my-2" @click="selectFolder" color="tertiary"> Choose </v-btn>
       </template>
     </v-text-field>
-		<v-btn v-if="!logging" :disabled="!folder" width="100%" color="indigo lighten-4" @click="startLogging()" >
+		<v-btn v-if="!logging" :disabled="!folder" width="100%" color="tertiary" @click="startLogging()" >
 			Start logging
 		</v-btn>
-		<v-btn v-else width="100%" color="indigo lighten-4" @click="stopLogging()">
+		<v-btn v-else width="100%" color="tertiary" @click="stopLogging()">
 			Stop logging
 		</v-btn>
 		<UploadHistory v-if="this.games.length > 0" :games="this.games"/>

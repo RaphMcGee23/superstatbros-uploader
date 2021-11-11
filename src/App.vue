@@ -1,6 +1,6 @@
 <template>
   <v-app>
-    <v-app-bar app color="indigo lighten-4" light>
+    <v-app-bar app color="background" dark>
       <div class="d-flex align-center">
         <h3 style="font-family:Roboto; font-weight:300;">SUPERSTATBROS</h3>
       </div>
@@ -16,7 +16,7 @@
         <v-icon>mdi-open-in-new</v-icon>
       </v-btn>
     </v-app-bar>
-    <v-main>
+    <v-main class="background">
       <v-container id="mainContainer" class="d-flex align-center justify-center">
         <v-row class="justify-center">
           <v-col>
@@ -49,5 +49,20 @@ export default {
 }
 .v-input__append-inner {
   margin: 0 !important;
+}
+.v-main__wrap {
+  position: relative;
+}
+.v-main__wrap:before {
+  content: " ";
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.2;
+  background-image: url("./assets/grid-me.png");
+  background-repeat: initial;
 }
 </style>

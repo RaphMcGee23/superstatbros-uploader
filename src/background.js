@@ -4,7 +4,7 @@ import { app, protocol, BrowserWindow, dialog, ipcMain, session } from 'electron
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 import installExtension, { VUEJS_DEVTOOLS } from 'electron-devtools-installer'
 const isDevelopment = process.env.NODE_ENV !== 'production'
-const {	Worker,isMainThread } = require('worker_threads');
+const { Worker, isMainThread } = require('worker_threads');
 const path = require('path');
 const axios = require('axios');
 const chokidar = require('chokidar');

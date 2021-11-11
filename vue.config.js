@@ -6,12 +6,16 @@ module.exports = {
 		electronBuilder: {
 			// Or, for multiple preload files:
 			preload: { preload: 'src/preload.js', slpWorker: "src/slpWorker.js"},
-			nsis: {
-				oneClick: false,
-				artifactName: "SUPERSTATBROS"
-			},
-			build: {
-				appId: "com.electron.statbros"
+			builderOptions: {
+				extraFiles: [
+					{
+						"from": "src/slpWorker.js",
+						"to": "src/slpWorker.js"
+					},{
+						"from": "node_modules",
+						"to": "node_modules"
+					},
+				]
 			}
 		}
 	}
