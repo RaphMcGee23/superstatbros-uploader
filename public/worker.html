@@ -13,6 +13,16 @@
 			console.log(match);
 			window.ipcRenderer.send('parseSlpWorker-reply', {match: match, token:data.token});
 		});
+		window.ipcRenderer.on('parseSlpUpload', (data) => {
+			const match = window.slippiGame.parse(data.path);
+			if(typeof match == 'object'){
+				match.name = data.name;
+				window.ipcRenderer.send('parseSlpUpload-reply', {match: match, token:data.token, name:match.name});
+			}
+			if(typeof match == 'string'){
+				window.ipcRenderer.send('parseSlpUpload-reply', "Error in SLP file.");
+			}
+		})
 	</script>
 </body>
 

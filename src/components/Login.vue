@@ -57,7 +57,7 @@
 
 <script>
 const axios = require('axios');
-axios.defaults.baseURL = "https://superstatbros.com";
+axios.defaults.baseURL = process.env.NODE_ENV === "production" ? 'https://superstatbros.com/api' : 'http://localhost:3000';
 export default {
   name: "Login",
   data: () => ({

@@ -1,5 +1,5 @@
 <template>
-	<v-card>
+	
           <v-form v-model="valid">
             <v-container>
               <v-row>
@@ -76,12 +76,12 @@
               </v-row>
             </v-container>
           </v-form>
-        </v-card>
+    
 </template>
 
 <script>
 const axios = require('axios');
-axios.defaults.baseURL = "https://superstatbros.com";
+axios.defaults.baseURL = process.env.NODE_ENV === "production" ? 'https://superstatbros.com/api' : 'http://localhost:3000';
 
 export default {
   name: "Register",

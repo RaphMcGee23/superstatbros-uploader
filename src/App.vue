@@ -64,5 +64,6 @@ export default {
   opacity: 0.2;
   background-image: url("./assets/grid-me.png");
   background-repeat: initial;
+	pointer-events: none;
 }
 </style>

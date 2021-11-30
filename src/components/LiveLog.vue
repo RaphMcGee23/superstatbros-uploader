@@ -1,5 +1,6 @@
 <template>
   <v-container>
+		<h1>Live Log</h1>
 		<strong>Choose the directory where slippi files are created.</strong>
     <v-text-field
       v-model="folderPath"

@@ -3,14 +3,16 @@
 import { app, protocol, BrowserWindow, dialog, ipcMain, session } from 'electron'
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 import installExtension, { VUEJS_DEVTOOLS } from 'electron-devtools-installer'
+import { exit } from 'process'
 const isDevelopment = process.env.NODE_ENV !== 'production'
-const { Worker, isMainThread } = require('worker_threads');
 const path = require('path');
 const axios = require('axios');
 const chokidar = require('chokidar');
-
+const fs = require('fs');
+const storage = require('electron-json-storage');
 // BASE URL FOR REQUESTS
-axios.defaults.baseURL = "https://superstatbros.com";
+axios.defaults.baseURL = process.env.NODE_ENV === "production" ? 'https://superstatbros.com/api' : 'http://localhost:3000';
+let storageFolder = storage.getDataPath();
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([
@@ -94,6 +96,17 @@ app.on('ready', async () => {
 	if (!isDevelopment) {
 		mainWindow.removeMenu();
 	}
+
+	if (!fs.existsSync(storageFolder)) {
+		fs.mkdirSync(storageFolder, { recursive: true });
+	}
+	if (!fs.existsSync(path.join(storageFolder, '/uploaded'))) {
+		fs.mkdirSync(path.join(storageFolder, '/uploaded'), { recursive: true });
+	}
+	if (!fs.existsSync(path.join(storageFolder, '/uploaded/uploaded.json'))) {
+		fs.writeFileSync(path.join(storageFolder, '/uploaded/uploaded.json'), JSON.stringify([]));
+	}
+
 	mainWindow.on('close', () => {
 		app.quit();
 	})
@@ -147,6 +160,20 @@ ipcMain.on('openDialog', () => {
 		});
 })
 
+// Opens dialog to select folder
+ipcMain.on('openDialogManual', () => {
+	dialog.showOpenDialog({
+		properties: ["openFile", "openDirectory", "multiSelections"],
+		filters: [{ extensions: ".slp" }]
+	})
+		.then((result) => {
+			mainWindow.webContents.send('folderPathManual', result);
+		})
+		.catch((err) => {
+			console.log(err);
+		});
+})
+
 // Start live logging
 ipcMain.on('startLogging', (e, data) => {
 	let watcher = chokidar.watch(path.join(data.path, '*.slp'), {
@@ -178,3 +205,110 @@ ipcMain.on('parseSlpWorker-reply', (e, data) => {
 			console.log(error);
 		});
 })
+
+// Used in upload view, gathers info to display in card
+// ipcMain.on('upload', async (e, data) => {
+// 	let uploaded = JSON.parse(fs.readFileSync(path.join(storageFolder, 'uploaded/uploaded.json')));
+// 	let uploadDir = fs.readdirSync(data.path).filter(file => path.extname(file) === ".slp");
+// 	// compare uploaded json to upload directory
+// 	let filesToUpload = uploadDir.filter(game => !uploaded.includes(game));
+// 	mainWindow.webContents.send('uploadInfo-reply', filesToUpload.length);
+// 	for (let i = 0; i < filesToUpload.length; i++) {
+// 		workerWindow.webContents.send("parseSlpUpload", { path: path.join(data.path, filesToUpload[i]), token: data.token, name: filesToUpload[i] })
+// 	}
+// })
+
+// ipcMain.on('parseSlpUpload-reply', (e, data) => {
+// 	if (typeof data === String) {
+// 		mainWindow.webContents.send("upload-reply");
+// 	} else {
+// 		// Upload SLP file
+// 		axios({ method: 'post', url: '/uploads', data: { game: data.match }, headers: { "auth-token": data.token } })
+// 			.then(function (res) {
+// 				console.log(res.data);
+// 				let uploaded = JSON.parse(fs.readFileSync(path.join(storageFolder, 'uploaded/uploaded.json')));
+// 				if (!uploaded.includes(data.name)) {
+// 					uploaded.push(data.name);
+// 					fs.writeFileSync(path.join(storageFolder, '/uploaded/uploaded.json'), JSON.stringify(uploaded));
+// 				}
+// 				mainWindow.webContents.send("upload-reply");
+// 			})
+// 			.catch(function (err) {
+// 				console.log(err);
+// 			});
+// 	}
+// })
+
+let shouldCancel = false;
+ipcMain.on('cancelUpload', () => {
+	shouldCancel = true;
+})
+
+const { SlippiGame } = require('@slippi/slippi-js');
+const crypto = require('crypto');
+const semver = require('semver');
+
+async function parse(path) {
+	let match = {};
+	const game = new SlippiGame(path);
+	const settings = game.getSettings();
+	const metadata = game.getMetadata();
+	const stats = game.getStats();
+	if (settings == undefined || metadata == undefined || stats == undefined) {
+		return "Error in Slp file sent."
+	}
+	if (semver.lt(settings.slpVersion, '3.6.0')) {
+		return "Slippi version: " + settings.slpVersion + ". Requires 3.6.0 or higher.";
+	}
+	if (settings.isTeams == true) {
+		return "Teams slp file not supported.";
+	}
+	const id = crypto.createHash("md5").update(`${settings.players[0].characterId}_${settings.players[0].characterColor}_${settings.players[1].characterId}_${settings.players[1].characterColor}_${metadata.startAt}_${settings.stageId}_${metadata.players[0].names.code}_${metadata.players[1].names.code}`).digest('hex');
+	match.settings = settings;
+	match.stats = stats;
+	match.metadata = metadata;
+	match.id = id;
+	return match;
+
+}
+
+// Manual upload
+ipcMain.on("manualUpload", async (event, data) => {
+	shouldCancel = false;
+	let uploaded = JSON.parse(fs.readFileSync(path.join(storageFolder, 'uploaded/uploaded.json')));
+	let uploadDir = fs.readdirSync(data.path).filter(file => path.extname(file) === ".slp");
+	// compare uploaded json to upload directory
+	let filesToUpload = uploadDir.filter(game => !uploaded.includes(game));
+	mainWindow.webContents.send('uploadInfo-reply', filesToUpload.length);
+	for (let i = 0; i < filesToUpload.length; i++) {
+		console.log('loop number: ' + i)
+		if(shouldCancel){
+			break;
+		}
+		let match = await parse(path.join(data.path, filesToUpload[i]));
+		if (typeof match == 'string') {
+			mainWindow.webContents.send('upload-reply');
+			let uploaded = JSON.parse(fs.readFileSync(path.join(storageFolder, 'uploaded/uploaded.json')));
+				if (!uploaded.includes(filesToUpload[i])) {
+					uploaded.push(filesToUpload[i]);
+					fs.writeFileSync(path.join(storageFolder, '/uploaded/uploaded.json'), JSON.stringify(uploaded));
+				}
+			console.log(match);
+		} else {
+			try{
+				const res = await axios.post('/uploads', { game: match }, { headers: {"auth-token": data.token } } )
+				console.log(res.data);
+				if(typeof res == "object"){
+					let uploaded = JSON.parse(fs.readFileSync(path.join(storageFolder, 'uploaded/uploaded.json')));
+					if (!uploaded.includes(filesToUpload[i])) {
+						uploaded.push(filesToUpload[i]);
+						fs.writeFileSync(path.join(storageFolder, '/uploaded/uploaded.json'), JSON.stringify(uploaded));
+					}
+				}
+			}catch(err){
+				if(err) console.log(err);
+			}
+			mainWindow.webContents.send("upload-reply");
+		}
+	}
+});
