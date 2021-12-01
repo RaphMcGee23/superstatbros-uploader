@@ -27,6 +27,11 @@
             <v-card-text class="py-5">
               <strong>Uploading files...</strong>
 							<strong class="float-right">{{this.uploadedCounter}} / {{this.filesToUpload}}</strong>
+							<div v-if="this.errors">
+							<p class="mb-0"><strong>Invalid SLP's: </strong>{{this.errors}}</p>
+							<p class="mb-0" v-if="this.startTime"><strong>Started {{ this.startTime | moment("from", "now") }}</strong></p>
+							<p class="mb-0" v-if="uploadedCounter == filesToUpload"><strong>Time elapsed: {{new Date() - this.startTime}}</strong></p>
+							</div>
               <v-progress-linear
                 v-model="uploadPercent"
                 buffer-value="100"
@@ -74,6 +79,9 @@ export default {
 			uploadDialog: false,
 			uploadedCounter: 0,
 			filesToUpload: 0,
+			errors: 0,
+			startTime: null,
+			timeTaken: null
     };
   },
   mounted() {
@@ -94,6 +102,9 @@ export default {
 				this.filesToUpload = data;
 			}
 		});
+		window.ipcRenderer.on("invalidSlp", () => {
+			this.errors++;
+		})
   },
 	computed: {
 		token(){
@@ -111,19 +122,23 @@ export default {
       window.ipcRenderer.send("openDialogManual");
     },
 		upload(){
-			// window.ipcRenderer.send("upload", {path:this.folderPath,token:this.token});
 			window.ipcRenderer.send("manualUpload",  {path:this.folderPath,token:this.token});
+			this.startTime = new Date();
 		},
 		closeModal() {
       this.uploadDialog = false;
 			this.uploadedCounter = 0;
 			this.filesToUpload = 0;
+			this.errors = 0;
+			this.startTime = null;
     },
 		cancelUpload(){
 			window.ipcRenderer.send("cancelUpload");
 			this.uploadDialog = false;
 			this.uploadedCounter = 0;
 			this.filesToUpload = 0;
+			this.errors = 0;
+			this.startTime = null;
 		}
   },
 };

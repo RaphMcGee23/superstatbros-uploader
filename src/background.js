@@ -190,7 +190,7 @@ ipcMain.on('startLogging', (e, data) => {
 	})
 	// Stop live logging
 	ipcMain.on("stopLogging", () => {
-		watcher.close().then(() => console.log('stop watching directory'));
+		watcher.close().then(() => console.log('stopped watching directory'));
 	});
 })
 
@@ -250,26 +250,50 @@ const semver = require('semver');
 
 async function parse(path) {
 	let match = {};
-	const game = new SlippiGame(path);
-	const settings = game.getSettings();
-	const metadata = game.getMetadata();
-	const stats = game.getStats();
-	if (settings == undefined || metadata == undefined || stats == undefined) {
-		return "Error in Slp file sent."
-	}
-	if (semver.lt(settings.slpVersion, '3.6.0')) {
-		return "Slippi version: " + settings.slpVersion + ". Requires 3.6.0 or higher.";
-	}
-	if (settings.isTeams == true) {
-		return "Teams slp file not supported.";
-	}
-	const id = crypto.createHash("md5").update(`${settings.players[0].characterId}_${settings.players[0].characterColor}_${settings.players[1].characterId}_${settings.players[1].characterColor}_${metadata.startAt}_${settings.stageId}_${metadata.players[0].names.code}_${metadata.players[1].names.code}`).digest('hex');
-	match.settings = settings;
-	match.stats = stats;
-	match.metadata = metadata;
-	match.id = id;
-	return match;
+		const game = new SlippiGame(path);
+		const metadata = game.getMetadata();
+		if(!metadata){
+			return "Error in generating metadata.";
+		}
+		for(let i = 0; i < 2; i++){
+			if(!metadata.players[i].names.code){
+				return "No connect code in file."
+			}
+		}
+		const settings = game.getSettings();
+		if(!settings){
+			return "Error in generating settings.";
+		}
+		if(semver.lt(settings.slpVersion, '3.6.0')){
+			return "Slippi version: " + settings.slpVersion + ". Requires 3.6.0 or higher.";
+		}
+		if (settings.isTeams == true) {
+			return "Teams slp file not supported.";
+		}
+		if(settings.players[0].characterId == undefined || settings.players[0].characterColor == undefined || settings.players[1].characterId  == undefined || settings.players[1].characterColor  == undefined || !metadata.startAt || !settings.stageId){
+			console.log(`
+			
+			player 1 character id: ${settings.players[0].characterId}
+			player 1 character color: ${settings.players[0].characterColor}
 
+			player 2 character id: ${settings.players[1].characterId}
+			player 2 character color: ${settings.players[1].characterColor}
+
+			startAt: ${metadata.startAt}
+			stageId: ${settings.stageId}
+			`)
+			return "Missing properties in SLP.";
+		}
+		const stats = game.getStats();
+		if(!stats){
+			return "Error in generating stats.";
+		}
+		const id = crypto.createHash("md5").update(`${settings.players[0].characterId}_${settings.players[0].characterColor}_${settings.players[1].characterId}_${settings.players[1].characterColor}_${metadata.startAt}_${settings.stageId}_${metadata.players[0].names.code}_${metadata.players[1].names.code}`).digest('hex');
+		match.settings = settings;
+		match.stats = stats;
+		match.metadata = metadata;
+		match.id = id;
+		return match;
 }
 
 // Manual upload
@@ -293,6 +317,7 @@ ipcMain.on("manualUpload", async (event, data) => {
 					uploaded.push(filesToUpload[i]);
 					fs.writeFileSync(path.join(storageFolder, '/uploaded/uploaded.json'), JSON.stringify(uploaded));
 				}
+				mainWindow.webContents.send("invalidSlp");
 			console.log(match);
 		} else {
 			try{
@@ -306,7 +331,13 @@ ipcMain.on("manualUpload", async (event, data) => {
 					}
 				}
 			}catch(err){
-				if(err) console.log(err);
+				if(err) console.log(err.response.data);
+				mainWindow.webContents.send("invalidSlp");
+				let uploaded = JSON.parse(fs.readFileSync(path.join(storageFolder, 'uploaded/uploaded.json')));
+					if (!uploaded.includes(filesToUpload[i])) {
+						uploaded.push(filesToUpload[i]);
+						fs.writeFileSync(path.join(storageFolder, '/uploaded/uploaded.json'), JSON.stringify(uploaded));
+					}
 			}
 			mainWindow.webContents.send("upload-reply");
 		}

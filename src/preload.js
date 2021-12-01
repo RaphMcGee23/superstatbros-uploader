@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld("ipcRenderer", {
     }
   },
   on: (channel, func) => {
-    let validChannels = ["log", "loginCookie", "folderPath", "folderPathManual", "upload-complete", "upload-reply", "uploadInfo-reply"] // <-- Array of all ipcMain Channels used in the electron
+    let validChannels = ["log", "loginCookie", "folderPath", "folderPathManual", "upload-complete", "upload-reply", "uploadInfo-reply", "invalidSlp"] // <-- Array of all ipcMain Channels used in the electron
     if (validChannels.includes(channel)) {
       // Deliberately strip event as it includes `sender`
       ipcRenderer.on(channel, (event, ...args) => func(...args))

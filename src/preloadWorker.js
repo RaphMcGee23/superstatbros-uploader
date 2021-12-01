@@ -29,6 +29,11 @@ contextBridge.exposeInMainWorld('slippiGame', {
 		if(!settings){
 			return "Error in generating settings.";
 		}
+		for(let i = 0; i < settings.players.length; i++){
+			if(!settings.players[i].connectCode){
+				return "No connect code in file."
+			}
+		}
 		const metadata = game.getMetadata();
 		if(!metadata){
 			return "Error in generating metadata.";
@@ -43,10 +48,10 @@ contextBridge.exposeInMainWorld('slippiGame', {
 		if (settings.isTeams == true) {
 			return "Teams slp file not supported.";
 		}
-		if(!settings.players[0].characterId || !settings.players[0].characterColor || !settings.players[1].characterId || !settings.players[1].characterColor || !metadata.startAt || !settings.stageI || !metadata.players[0].names.code || !metadata.players[1].names.code){
+		if(!settings.players[0].characterId || !settings.players[0].characterColor || !settings.players[1].characterId || !settings.players[1].characterColor || !metadata.startAt || !settings.stageI){
 			return "Missing properties in SLP.";
 		}
-		const id = crypto.createHash("md5").update(`${settings.players[0].characterId}_${settings.players[0].characterColor}_${settings.players[1].characterId}_${settings.players[1].characterColor}_${metadata.startAt}_${settings.stageId}_${metadata.players[0].names.code}_${metadata.players[1].names.code}`).digest('hex');
+		const id = crypto.createHash("md5").update(`${settings.players[0].characterId}_${settings.players[0].characterColor}_${settings.players[1].characterId}_${settings.players[1].characterColor}_${metadata.startAt}_${settings.stageId}_${settings.players[0].connectCode}_${settings.players[1].connectCode}`).digest('hex');
 		match.settings = settings;
 		match.stats = stats;
 		match.metadata = metadata;
