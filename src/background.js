@@ -284,6 +284,7 @@ async function parse(path) {
 			`)
 			return "Missing properties in SLP.";
 		}
+		const gameEnd = game.getGameEnd();
 		const stats = game.getStats();
 		if(!stats){
 			return "Error in generating stats.";
@@ -293,6 +294,7 @@ async function parse(path) {
 		match.stats = stats;
 		match.metadata = metadata;
 		match.id = id;
+		match.gameEnd = gameEnd;
 		return match;
 }
 
@@ -311,13 +313,12 @@ ipcMain.on("manualUpload", async (event, data) => {
 		}
 		let match = await parse(path.join(data.path, filesToUpload[i]));
 		if (typeof match == 'string') {
-			mainWindow.webContents.send('upload-reply');
+			mainWindow.webContents.send("invalidSlp");
 			let uploaded = JSON.parse(fs.readFileSync(path.join(storageFolder, 'uploaded/uploaded.json')));
 				if (!uploaded.includes(filesToUpload[i])) {
 					uploaded.push(filesToUpload[i]);
 					fs.writeFileSync(path.join(storageFolder, '/uploaded/uploaded.json'), JSON.stringify(uploaded));
 				}
-				mainWindow.webContents.send("invalidSlp");
 			console.log(match);
 		} else {
 			try{
